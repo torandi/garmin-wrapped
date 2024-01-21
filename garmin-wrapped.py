@@ -204,13 +204,14 @@ def build_vo2max_improvement(activities):
 
 
 def filter_activity(act):
+	date = parse_time(act['startTimeLocal'])
 	return {
 		'name': act['activityName'],
 		'distance': act['distance'] or 0,
 		'duration': act['duration'] or 0,
 		'elevation_gain': act['elevationGain'] or 0,
 		'avgHr': act['averageHR'],
-		'date': act['startTimeLocal']
+		'date': date.strftime("%d %B")
 	}
 
 ### Main Program
@@ -296,6 +297,7 @@ data['sports_by_elevation_gain'] = [sport['name'] for sport in build_sorted_list
 data['longest_activity'] = longest_activity
 
 data['active_days'] = {x: len(y) for x,y in active_days.items()}
+data['monthly'] = monthly
 
 data['totals'] = {
 	'elevation_gain':  summarize_field(activities, 'elevationGain'),

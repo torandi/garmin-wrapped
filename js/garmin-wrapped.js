@@ -1,4 +1,9 @@
-import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+//import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+
+
+const monthNames = ["January", "February", "March", "April", "May", "June",
+	"July", "August", "September", "October", "November", "December"
+];
 
 class Wrapped
 {
@@ -8,16 +13,27 @@ class Wrapped
 		this.pageIndex = 0
 
 		this.pages = [
-			this.splashPage.bind(this),
-			this.activeDays.bind(this),
-			this.mainSportDuration.bind(this),
-			this.mainSportDistance.bind(this)
+			//this.splashPage.bind(this),
+			//this.activeDays.bind(this),
+			//this.totalTime.bind(this),
+			//this.totalDistance.bind(this),
+			//this.totalElevation.bind(this),
+			this.longestActivity.bind(this)
+			//this.mainSportDuration.bind(this),
+			//this.mainSportDistance.bind(this),
 		]
 
 		this.loadJson().then( (success) => {
 
 			if(success)
 			{
+				if(this.data.sports.includes("Running") || this.data.sports.includes("Cycling"))
+				{
+					// todo: push vo2maxImprovement()
+				}
+
+				this.pages.push(this.summaryPage.bind(this))
+
 				this.showFirstPage()
 			}
 			else
@@ -108,7 +124,7 @@ class Wrapped
 			const metersInKm = 1000;
 
 			const kms = Math.floor(distance / metersInKm);
-			if (kms >= 10)
+			if (kms >= 30)
 				result = `${kms} km`
 			else
 				result = `${Math.floor(distance)} m`
@@ -120,12 +136,37 @@ class Wrapped
 			const feetsInMile = 5280;
 
 			const miles = Math.floor(feets / feetsInMile);
-			if (miles > 6)
+			if (miles > 20)
 				result = `${miles} miles`
 			else
 				result = `${Math.floor(feets)} ft`
 		}
 		return result;
+	}
+
+	buildMonthlyTable(entry, displayFunc, classes)
+	{
+		let data = [];
+		let largest = 0;
+		for(let i=0; i<12; ++i) {
+			data[i] = this.data.monthly[i+1][entry]
+			if(data[i] > largest)
+				largest = data[i]
+		}
+		
+		let diagram = fromHTML(`<div class='diagram-vertical ${classes}'></div>`)
+		for(let i=0; i<12; ++i) {
+			let row = fromHTML("<div class='diagram-vertical-row'></div>");
+
+			row.append(fromHTML(`<span class='month-label'>${monthNames[i]}</span>`))
+
+			const percentage = Math.round((data[i] / largest) * 100.0);
+
+			row.append(fromHTML(`<span class='progress-bar-wrapper'><span class='progress-bar' style='width: ${percentage}%'/></span>`))
+			row.append(fromHTML(`<span class='data-label'>${displayFunc(data[i])}</span>`))
+			diagram.append(row)
+		}
+		return diagram
 	}
 
 	/**
@@ -144,12 +185,53 @@ class Wrapped
 	activeDays()
 	{
 		let page = this.generatePage("You spent many days active")
-		page.append(banner(`${this.data.totals.active_days} in total`, 'large'))
-		// todo: show active days per month in graph
+		page.append(banner(`${this.data.totals.active_days} in total`, 'large sport hidden'))
 
-		return [page, () => {
+		let diagram = fromHTML("<div class='diagram-horizontal data hidden'></div>")
+		for(let i=0; i<12; ++i) {
+			let column = fromHTML("<div class='diagram-horizontal-column'></div>");
 
-		}]
+			const count = this.data.active_days[i+1];
+			column.append(fromHTML(`<span class='count-label'>${count}</span>`))
+			for(let j=0; j<count; ++j) {
+				column.append(fromHTML("<span class='activity-circle'/>"))
+			}
+			column.append(fromHTML(`<span class='month-label'>${monthNames[i]}</span>`))
+			diagram.append(column)
+		}
+		page.append(diagram)
+
+		return [page, transitionInDefault]
+	}
+
+	totalTime()
+	{
+		let page = this.generatePage("You sure exercised a lot")
+		page.append(banner(`${humanTime(this.data.totals.duration)} in fact`, 'large sport hidden'))
+
+		page.append(this.buildMonthlyTable('duration', humanTime, 'data hidden'))
+
+		return [page, transitionInDefault]
+	}
+
+	totalDistance()
+	{
+		let page = this.generatePage("And covered a lot of distance")
+		page.append(banner(`${this.humanDistance(this.data.totals.distance)} in total`, 'large sport hidden'))
+
+		page.append(this.buildMonthlyTable('distance', this.humanDistance.bind(this), 'data hidden'))
+
+		return [page, transitionInDefault]
+	}
+
+	totalElevation()
+	{
+		let page = this.generatePage("Big hills where no challenge")
+		page.append(banner(`You climbed ${this.humanDistance(this.data.totals.elevation_gain)}`, 'large sport hidden'))
+
+		page.append(this.buildMonthlyTable('elevation_gain', this.humanDistance.bind(this), 'data hidden'))
+
+		return [page, transitionInDefault]
 	}
 
 	mainSportDuration()
@@ -158,7 +240,7 @@ class Wrapped
 		const sport = this.data.sports_by_duration[0];
 		const sportData = this.data.sports[sport];
  		page.append(banner(sport, 'large hidden sport'));
-		page.append(banner(humanTime(sportData.duration), 'medium hidden duration'))
+		page.append(banner(humanTime(sportData.duration), 'medium hidden data'))
 		page.append(
 			table(() => {
 				return this.data.sports_by_duration.slice(1).reduce((result, sport) => {
@@ -169,24 +251,16 @@ class Wrapped
 				}, "");
 			}, 'other hidden')
 		)
-		return [page,() => {
-			gsap.timeline()
-				.set('.sport', {scaleX: 0, opacity: 1})
-				.to(".sport", {scaleX: 1, duration: 1, ease: "power1.in"})
-				.to(".duration", {opacity: 1, duration: 1, ease: "power2.in"})
-				.to(".other", {opacity: 1},
-				)
-			}
-		]
+		return [page, transitionInDefault]
 	}
 
 	mainSportDistance()
 	{
-		let page = this.generatePage(`You covered the most ${this.distanceTerm()}`);
+		let page = this.generatePage(`You covered the most distance`);
 		const sport = this.data.sports_by_distance[0];
 		const sportData = this.data.sports[sport];
  		page.append(banner(sport, 'large hidden sport'));
-		page.append(banner(this.humanDistance(sportData.distance), 'medium hidden distance'))
+		page.append(banner(this.humanDistance(sportData.distance), 'medium hidden data'))
 		page.append(
 			table(() => {
 				return this.data.sports_by_distance.slice(1).reduce((result, sport) => {
@@ -197,14 +271,31 @@ class Wrapped
 				}, "");
 			}, 'other hidden')
 		)
-		return [page, () => {
-			gsap.timeline()
-				.set('.sport', {scaleX: 0, opacity: 1})
-				.to(".sport", {scaleX: 1, duration: 1, ease: "power1.in"})
-				.to(".distance", {opacity: 1, duration: 1, ease: "power2.in"})
-				.to(".other", {opacity: 1})
-			}
-		]
+		return [page, transitionInDefault]
+	}
+
+	longestActivity()
+	{
+		let page = this.generatePage(`Your longest activity was`)
+		page.append(banner(`${this.data.longest_activity.name} ${this.data.longest_activity.date}`, 'large sport hidden'))
+		page.append(banner(this.humanDistance(this.data.longest_activity.distance), 'medium data hidden'))
+		page.append(banner(`${this.humanDistance(this.data.longest_activity.elevation_gain)} elevation gain`, 'medium hidden other'))
+		page.append(banner(`${Math.floor(this.data.longest_activity.avgHr)} bpm average heart rate`, 'medium hidden other'))
+
+		return [page, transitionInDefault]
+	}
+
+	summaryPage()
+	{
+		let page = this.generatePage(`${this.data.name}'s ${this.data.year}`)
+		// todo: vary color on these
+		page.append(banner(`${this.humanDistance(this.data.totals.distance)}`, 'large'))
+		page.append(banner(`${humanTime(this.data.totals.duration)}`, 'large'))
+		page.append(banner(`${this.humanDistance(this.data.totals.elevation_gain)}`, 'large'))
+		page.append(banner(`${this.data.totals.count} activities`, 'large'))
+		page.append(banner(`${this.data.totals.active_days} active days`, 'large'))
+
+		return [page, () => {}]
 	}
 }
 
@@ -281,6 +372,14 @@ function humanTime(seconds)
 		result += `${minutes} minute${numberEnding(minutes)}`
 
 	return result;
+}
+
+function transitionInDefault() {
+	gsap.timeline()
+		.set('.sport', {scaleX: 0, opacity: 1})
+		.to(".sport", {scaleX: 1, duration: 1, ease: "power1.in"})
+		.to(".data", {opacity: 1, duration: 1, ease: "power2.in"})
+		.to(".other", {opacity: 1})
 }
 
 export { Wrapped }

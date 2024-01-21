@@ -34,7 +34,7 @@ html {
 	justify-content: center;
 	width: 80%;
 	margin-left: 10%;
-	margin-top: 10%;
+	margin-top: 100px;
 	background: rgb(214,212,255);
 	background: linear-gradient(153deg, rgba(214,212,255,1) 0%, rgba(8,168,240,1) 74%, rgba(0,104,125,1) 100%);
 	color: black;
@@ -88,22 +88,6 @@ h1 {
 	text-align: center;
 }
 
-
-.progress-bar-horizontal {
-	background: #3b97f3;
-	height: inherit;
-	max-width: 100%;
-	border-right: 2px solid #ffffff;
-}
-
-.progress-bar--horizontal-wrapper {
-	background: #e4e4e4;
-	height: 20px;
-	overflow: hidden;
-	width: 80%;
-	display: inline-block;
-}
-
 .hidden {
 	opacity: 0;
 }
@@ -115,7 +99,84 @@ h1 {
 }
 
 .profile img {
-
 	width: 200px;
 	clip-path: circle(100px);
 }
+
+/* horizontal table */
+
+.diagram-horizontal {
+	display: table;
+	height: 400px;
+	margin: 0 auto;
+}
+
+.diagram-horizontal-column {
+	text-align: center;
+	align-items: center;
+	margin: 0px;
+	width: 50px;
+	display: table-cell;
+  	vertical-align: bottom;
+}
+
+.diagram-horizontal-column > *{
+	display: block;
+	text-align: center;
+}
+
+.activity-circle {
+	height: 15px;
+	width: 15px;
+	margin: 0 auto;
+	background-color: #0043ac;
+	border-radius: 50%;
+}
+
+.count-label, .data-label {
+	color: #283033;
+}
+
+.diagram-horizontal .month-label {
+	margin-top: 10px;
+	transform: rotate(-70deg);
+	color: white;
+}
+
+/* vertical table */
+
+.diagram-vertical {
+	display: block;
+	margin: 0 auto;
+	width: 900px;
+}
+
+.diagram-vertical-row {
+	margin: 5px 0px;
+	display: block;
+}
+
+.diagram-vertical .month-label {
+	width: 80px;
+	margin-right: 5px;
+	display: inline-block;
+	color: #283033;
+}
+
+.progress-bar {
+	background: #7e0eb1;
+	height: inherit;
+	max-width: 100%;
+	border-right: 2px solid #ffffff;
+	display: inline-block;
+}
+
+.progress-bar-wrapper {
+	background: #e4e4e4;
+	height: 20px;
+	overflow: hidden;
+	width: 70%;
+	display: inline-block;
+	margin-right: 10px;
+}
+
