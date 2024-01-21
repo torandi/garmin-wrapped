@@ -54,7 +54,7 @@ timeOfDay = [
 	},
 	{
 		'start': 13,
-		'name': "Afternoom"
+		'name': "Afternoon"
 	},
 	{
 		'start': 17,
