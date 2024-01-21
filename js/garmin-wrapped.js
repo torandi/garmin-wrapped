@@ -9,8 +9,8 @@ class Wrapped
 
 			if(success)
 			{
-			//	this.showFirstPage(this.splashPage(), ()=>{})
-				this.showFirstPage(this.mainSportDuration(), this.mainSportDurationAnimate)
+				this.showFirstPage(this.splashPage())
+				//this.showFirstPage(this.mainSportDuration())
 			}
 			else
 			{
@@ -30,22 +30,22 @@ class Wrapped
 	}
 
 
-	showFirstPage(page, animation)
+	showFirstPage(page)
 	{
 
-		this.renderPage(page)
-		this.updateCurrent()
+		this.renderPage(page[0])
+		this.updateCurrent(page[2])
 
-		animation()
+		page[1]()
 	}
 
 	splashPage()
 	{
-		let page = this.generatePage("Your Year in Sports", this.mainSportDuration(), this.mainSportAnimateDuration)
+		let page = this.generatePage("Your Year in Sports")
 		page.append(fromHTML(`<p class='profile'><img src="${this.data.profilePicture}"/></p>`))
 		page.append(banner(this.data.year, 'large'))
 		page.append(banner(this.data.name, 'medium'))
-		return page
+		return [page,()=>{}, () => this.mainSportDuration()]
 	}
 
 	distanceTerm()
@@ -55,7 +55,7 @@ class Wrapped
 
 	mainSportDuration()
 	{
-		let page = this.generatePage("You spent a lot of time", this.mainSportDistance(), this.mainSportDistanceAnimate);
+		let page = this.generatePage("You spent a lot of time");
 		const sport = this.data.sports_by_duration[0];
 		const sportData = this.data.sports[sport];
  		page.append(banner(sport, 'large hidden sport'));
@@ -70,16 +70,16 @@ class Wrapped
 				}, "");
 			}, 'other hidden')
 		)
-		return page
-	}
-
-	mainSportDurationAnimate()
-	{
-		let transition = gsap.timeline()
-			.set('.sport', {scaleX: 0, opacity: 1})
-			.to(".sport", {scaleX: 1, duration: 1, ease: "power1.in"})
-			.to(".duration", {opacity: 1, duration: 1, ease: "power2.in"})
-			.to(".other", {opacity: 1})
+		return [page,() => {
+			gsap.timeline()
+				.set('.sport', {scaleX: 0, opacity: 1})
+				.to(".sport", {scaleX: 1, duration: 1, ease: "power1.in"})
+				.to(".duration", {opacity: 1, duration: 1, ease: "power2.in"})
+				.to(".other", {opacity: 1},
+				)
+			},
+			() => this.mainSportDistance()
+		]
 	}
 
 	mainSportDistance()
@@ -99,23 +99,20 @@ class Wrapped
 				}, "");
 			}, 'other hidden')
 		)
-		return page
+		return [page, () => {
+			gsap.timeline()
+				.set('.sport', {scaleX: 0, opacity: 1})
+				.to(".sport", {scaleX: 1, duration: 1, ease: "power1.in"})
+				.to(".distance", {opacity: 1, duration: 1, ease: "power2.in"})
+				.to(".other", {opacity: 1})
+			}, 
+			null
+		]
 	}
 
-	mainSportDistanceAnimate()
-	{
-		let transition = gsap.timeline()
-			.set('.sport', {scaleX: 0, opacity: 1})
-			.to(".sport", {scaleX: 1, duration: 1, ease: "power1.in"})
-			.to(".distance", {opacity: 1, duration: 1, ease: "power2.in"})
-			.to(".other", {opacity: 1})
-	}
-
-	generatePage(title, nextPage=null, nextPageAnimate=null)
+	generatePage(title)
 	{
 		let page = fromHTML(`<div class='container'><h1>${title}</h1></div>`)
-		if(nextPage != null)
-			page.addEventListener('click', () => {this.transitionTo(nextPage, nextPageAnimate)})
 
 		return page
 	}
@@ -123,29 +120,37 @@ class Wrapped
 	renderPage(page)
 	{
 		page.id = 'next'
+		page.visibility = "hidden"
 		this.output.append(page)
 	}
 
-	updateCurrent()
+	updateCurrent(nextPage)
 	{
 		const next = document.getElementById('next')
 		const cur = document.getElementById('current')
 		if(cur != null)
 			cur.remove()
+
+		if(nextPage != null)
+			next.addEventListener('click', () => {this.transitionTo(nextPage())})
+
 		next.id = 'current'
 	}
 
-	transitionTo(nextPage, nextPageAnimate) {
-		this.renderPage(nextPage)
+	transitionTo(nextPage) {
+		if(nextPage == null)
+			return
+
+		this.renderPage(nextPage[0])
 
 		let transition = gsap.timeline();
 		transition
 			.set("#next", { rotate: -45 })
-			.set("#next", { x: (i, t) => getOffScreenLeft(t), rotate: -45 })
+			.set("#next", { x: (i, t) => getOffScreenLeft(t), visibility:"visible" })
 			.to("#current", {x: (i,t) => getOffScreenRight(t), rotate: 45, duration: 2, ease: "power2.in"})
 			.to("#next", {x: 0, rotate: 0, duration: 2, ease: "power2.out"})
-			.call(this.updateCurrent)
-			.call(nextPageAnimate)
+			.call(() => {this.updateCurrent(nextPage[2])})
+			.call(nextPage[1])
 	}
 
 	humanDistance(distance) {
