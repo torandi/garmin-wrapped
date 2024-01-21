@@ -9,8 +9,8 @@ class Wrapped
 
 			if(success)
 			{
-				//this.showFirstPage(this.splashPage(), ()=>){})
-				this.showFirstPage(this.mainSport(), this.mainSportAnimate)
+			//	this.showFirstPage(this.splashPage(), ()=>{})
+				this.showFirstPage(this.mainSportDuration(), this.mainSportDurationAnimate)
 			}
 			else
 			{
@@ -41,20 +41,25 @@ class Wrapped
 
 	splashPage()
 	{
-		let page = this.generatePage("Your Year in Sports", this.mainSport(), this.mainSportAnimate)
+		let page = this.generatePage("Your Year in Sports", this.mainSportDuration(), this.mainSportAnimateDuration)
+		page.append(fromHTML(`<p class='profile'><img src="${this.data.profilePicture}"/></p>`))
 		page.append(banner(this.data.year, 'large'))
 		page.append(banner(this.data.name, 'medium'))
 		return page
 	}
 
-	mainSport()
+	distanceTerm()
 	{
-		let page = this.generatePage("You spent the most time");
+		return this.data.unit_system == 'metric' ? "kilometers" : "miles";
+	}
+
+	mainSportDuration()
+	{
+		let page = this.generatePage("You spent a lot of time", this.mainSportDistance(), this.mainSportDistanceAnimate);
 		const sport = this.data.sports_by_duration[0];
 		const sportData = this.data.sports[sport];
  		page.append(banner(sport, 'large hidden sport'));
 		page.append(banner(humanTime(sportData.duration), 'medium hidden duration'))
-		page.append(textItem(this.humanDistance(sportData.distance), 'medium distance hidden'))
 		page.append(
 			table(() => {
 				return this.data.sports_by_duration.slice(1).reduce((result, sport) => {
@@ -68,13 +73,41 @@ class Wrapped
 		return page
 	}
 
-	mainSportAnimate()
+	mainSportDurationAnimate()
 	{
 		let transition = gsap.timeline()
 			.set('.sport', {scaleX: 0, opacity: 1})
 			.to(".sport", {scaleX: 1, duration: 1, ease: "power1.in"})
 			.to(".duration", {opacity: 1, duration: 1, ease: "power2.in"})
-			.to(".distance", {opacity: 1})
+			.to(".other", {opacity: 1})
+	}
+
+	mainSportDistance()
+	{
+		let page = this.generatePage(`You covered the most ${this.distanceTerm()}`);
+		const sport = this.data.sports_by_distance[0];
+		const sportData = this.data.sports[sport];
+ 		page.append(banner(sport, 'large hidden sport'));
+		page.append(banner(this.humanDistance(sportData.distance), 'medium hidden distance'))
+		page.append(
+			table(() => {
+				return this.data.sports_by_distance.slice(1).reduce((result, sport) => {
+					return result + `<tr>
+						<td>${sport}</td>
+						<td>${this.humanDistance(this.data.sports[sport].distance)}</td>
+					</tr>`
+				}, "");
+			}, 'other hidden')
+		)
+		return page
+	}
+
+	mainSportDistanceAnimate()
+	{
+		let transition = gsap.timeline()
+			.set('.sport', {scaleX: 0, opacity: 1})
+			.to(".sport", {scaleX: 1, duration: 1, ease: "power1.in"})
+			.to(".distance", {opacity: 1, duration: 1, ease: "power2.in"})
 			.to(".other", {opacity: 1})
 	}
 

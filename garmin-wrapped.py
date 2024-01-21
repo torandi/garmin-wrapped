@@ -202,6 +202,17 @@ def build_vo2max_improvement(activities):
 	
 	return result
 
+
+def filter_activity(act):
+	return {
+		'name': act['activityName'],
+		'distance': act['distance'] or 0,
+		'duration': act['duration'] or 0,
+		'elevation_gain': act['elevationGain'] or 0,
+		'avgHr': act['averageHR'],
+		'date': act['startTimeLocal']
+	}
+
 ### Main Program
 
 # Authenticate
@@ -230,7 +241,8 @@ print(f"Getting info for year {year}\n")
 data = {
 	'name': api.get_full_name(),
 	'unit_system': api.get_unit_system(),
-	'year': year
+	'year': year,
+	'profilePicture': api.garth.profile['profileImageUrlLarge']
 }
 
 # prevent re-fetching activities every re-run
@@ -249,7 +261,8 @@ grouped_activities = {}
 monthly = {x:{} for x in range(1,13)}
 per_tod = {}
 
-longest_activity = {} # todo
+longest_activity = filter_activity(activities[0])
+active_days = {x:{} for x in range(1,13)}
 
 for act in activities:
 	sport = find_activity_group(act)
@@ -266,6 +279,11 @@ for act in activities:
 	increment_entry(monthly[month], 'elevation_gain', act['elevationGain'])
 	increment_entry(per_tod, get_time_of_day(act['startTimeLocal'], act['duration']))
 
+	active_days[month][time.day] = 1
+
+	if act['distance'] > (longest_activity['distance'] or 0):
+		longest_activity = filter_activity(act)
+
 # Set up favorite time of day data
 summaries = {sport: sport_summary(sportsData) for sport,sportsData in grouped_activities.items() }
 data['sports'] = summaries
@@ -275,11 +293,16 @@ data['sports_by_duration'] = [sport['name'] for sport in build_sorted_list(summa
 data['sports_by_distance'] = [sport['name'] for sport in build_sorted_list(summaries, lambda sport: sport['distance'])]
 data['sports_by_elevation_gain'] = [sport['name'] for sport in build_sorted_list(summaries, lambda sport: sport['elevation_gain'])]
 
+data['longest_activity'] = longest_activity
+
+data['active_days'] = {x: len(y) for x,y in active_days.items()}
+
 data['totals'] = {
 	'elevation_gain':  summarize_field(activities, 'elevationGain'),
 	'distance': summarize_field(activities, 'distance'),
 	'duration': summarize_field(activities, 'duration'),
-	'count':  len(activities)
+	'count':  len(activities),
+	'active_days': reduce(lambda x,y: x+y, data['active_days'].values())
 }
 
 # build improvement data for running and cycling
