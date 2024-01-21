@@ -19,7 +19,7 @@ from garminconnect import (
 	GarminConnectTooManyRequestsError
 )
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 tokenstore = ".garminconnect"
 
@@ -94,11 +94,6 @@ def init_api():
 	
 	return garmin
 		
-def get_user_data():
-	return {
-		'full_name': api.get_full_name(),
-		'unit_system': api.get_unit_system()
-	}
 	
 def fetch_activites(year):
 	return api.get_activities_by_date(f"{year}-01-01",f"{year}-12-31")
@@ -126,6 +121,15 @@ def find_activity_group(activity):
 def parse_time(timeStr):
 	return datetime.datetime.strptime(timeStr, "%Y-%m-%d %H:%M:%S")
 
+def increment_entry(dict, entry, amount=1):
+	if amount is None:
+		return
+
+	if entry not in dict:
+		dict[entry] = amount
+	else:
+		dict[entry] += amount
+
 def get_time_of_day(timeStr, duration):
 	time = parse_time(timeStr)
 	# add on half duration (to get midpoint)
@@ -137,26 +141,26 @@ def get_time_of_day(timeStr, duration):
 
 	return timeOfDay[len(timeOfDay) - 1]['name']
 
-def dict_to_list(key, val):
+def dict_to_list(key, val, defaultValueKey = 'value'):
 	if not isinstance(val,dict):
-		val = { 'value': val }
+		val = { defaultValueKey: val }
 
 	val['name'] = key
 	return val
 
-def build_sorted_list(dataDict, sortFunc):
-	sorted_list = [ dict_to_list(key,val) for key,val in dataDict.items() ]
+def build_sorted_list(dataDict, sortFunc, defaultValueKey = 'value'):
+	sorted_list = [ dict_to_list(key,val, defaultValueKey) for key,val in dataDict.items() ]
 	sorted_list.sort(key = sortFunc, reverse=True)
 	return sorted_list
 
 def summarize_field(summaries, field):
-	return reduce(lambda acum,cur: acum + cur[field], summaries.values(), 0 )
+	return reduce(lambda acum,cur: acum + (cur[field] or 0), summaries, 0 )
 
-def sport_summary(activities, favTime):
+def sport_summary(activities):
 	summary = {
-		'total_distance': 0.0,
-		'total_duration': 0.0,
-		'total_elevation_gain': 0.0,
+		'distance': 0.0,
+		'duration': 0.0,
+		'elevation_gain': 0.0,
 		'count': len(activities)
 	}
 
@@ -166,15 +170,14 @@ def sport_summary(activities, favTime):
 	avgHrSum = 0
 
 	for act in activities:
-		summary['total_distance'] += act["distance"] or 0
-		summary['total_duration'] += act['duration'] or 0
-		summary['total_elevation_gain'] += act['elevationGain'] or 0
+		summary['distance'] += act["distance"] or 0
+		summary['duration'] += act['duration'] or 0
+		summary['elevation_gain'] += act['elevationGain'] or 0
 		avgHrSum += act['averageHR']
-		favTime[get_time_of_day(act['startTimeLocal'], act['duration'])] += 1
 
 	summary['avg_hr'] = avgHrSum / summary['count']
-	summary['avg_distance'] = summary['total_distance'] / summary['count']
-	summary['avg_duration'] = summary['total_duration'] / summary['count']
+	summary['avg_distance'] = summary['distance'] / summary['count']
+	summary['avg_duration'] = summary['duration'] / summary['count']
 
 	return summary
 
@@ -224,16 +227,18 @@ if year is None:
 
 print(f"Getting info for year {year}\n")
 
-data = {}
-
-data['user'] = get_user_data();
+data = {
+	'name': api.get_full_name(),
+	'unit_system': api.get_unit_system(),
+	'year': year
+}
 
 # prevent re-fetching activities every re-run
-if os.path.exists("activities.json"):
-	activities = load_json("activities.json")
+if os.path.exists(f"activities{year}.json"):
+	activities = load_json(f"activities{year}.json")
 else:
 	activities = fetch_activites(year)
-	write_json("activities.json", activities)
+	write_json(f"activities{year}.json", activities)
 
 # Sort activities by date
 activities.sort(key = lambda act: parse_time(act['startTimeLocal']))
@@ -241,7 +246,10 @@ activities.sort(key = lambda act: parse_time(act['startTimeLocal']))
 # group activites by top level sports
 
 grouped_activities = {}
-month_activities = {}
+monthly = {x:{} for x in range(1,13)}
+per_tod = {}
+
+longest_activity = {} # todo
 
 for act in activities:
 	sport = find_activity_group(act)
@@ -249,40 +257,42 @@ for act in activities:
 		if not sport in grouped_activities:
 			grouped_activities[sport] = []
 		grouped_activities[sport].append(act)
-	month = parse_time(act['startTimeLocal']).month
-	if not month in month_activities:
-		month_activities[month] = 0
-	month_activities[month] += 1
+	time = parse_time(act['startTimeLocal'])
+	month = time.month
+
+	increment_entry(monthly[month], 'count')
+	increment_entry(monthly[month], 'duration', act['duration'])
+	increment_entry(monthly[month], 'distance', act['distance'])
+	increment_entry(monthly[month], 'elevation_gain', act['elevationGain'])
+	increment_entry(per_tod, get_time_of_day(act['startTimeLocal'], act['duration']))
 
 # Set up favorite time of day data
-favTime = { data['name']:0 for data in timeOfDay }
+summaries = {sport: sport_summary(sportsData) for sport,sportsData in grouped_activities.items() }
+data['sports'] = summaries
 
-summaries = {sport: sport_summary(sportsData, favTime) for sport,sportsData in grouped_activities.items() }
-data['sport_summaries'] = summaries
+data['time_of_day'] = build_sorted_list(per_tod, lambda x: x['count'], 'count')
+data['sports_by_duration'] = [sport['name'] for sport in build_sorted_list(summaries, lambda sport: sport['duration'])]
+data['sports_by_distance'] = [sport['name'] for sport in build_sorted_list(summaries, lambda sport: sport['distance'])]
+data['sports_by_elevation_gain'] = [sport['name'] for sport in build_sorted_list(summaries, lambda sport: sport['elevation_gain'])]
 
-data['time_of_day'] = build_sorted_list(favTime, lambda x: x['value'])
-data['sports_by_duration'] = [sport['name'] for sport in build_sorted_list(summaries, lambda sport: sport['total_duration'])]
-data['sports_by_distance'] = [sport['name'] for sport in build_sorted_list(summaries, lambda sport: sport['total_distance'])]
-data['sports_by_elevation_gain'] = [sport['name'] for sport in build_sorted_list(summaries, lambda sport: sport['total_elevation_gain'])]
-
-# some summaries for all activities
-data['total_elevation_gain'] = summarize_field(summaries, 'total_elevation_gain') 
-data['total_distance'] = summarize_field(summaries, 'total_distance') 
-data['total_duration'] = summarize_field(summaries, 'total_duration') 
-data['total_activities'] = len(activities)
-
-# find most active month
-data['month_activities'] = build_sorted_list(month_activities, lambda x: x['value'])
+data['totals'] = {
+	'elevation_gain':  summarize_field(activities, 'elevationGain'),
+	'distance': summarize_field(activities, 'distance'),
+	'duration': summarize_field(activities, 'duration'),
+	'count':  len(activities)
+}
 
 # build improvement data for running and cycling
 if "Running" in summaries:
 	improvements = build_vo2max_improvement(grouped_activities['Running'])
 	if improvements is not None:
-		data['running_improvement'] = improvements
+		data['sports']['Running'].update(improvements)
 
 if "Cycling" in summaries:
 	improvements = build_vo2max_improvement(grouped_activities['Cycling'])
 	if improvements is not None:
-		data['cycling_improvement'] = improvements
+		data['sports']['Cycling'].update(improvements)
 
 write_json("garmin-wrapped.json", data)
+
+print("Data written to garmin-wrapped.json")
