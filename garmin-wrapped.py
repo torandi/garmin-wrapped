@@ -246,12 +246,13 @@ data = {
 	'profilePicture': api.garth.profile['profileImageUrlLarge']
 }
 
-# prevent re-fetching activities every re-run
-if os.path.exists(f"activities{year}.json"):
-	activities = load_json(f"activities{year}.json")
-else:
-	activities = fetch_activites(year)
-	write_json(f"activities{year}.json", activities)
+# Uncomment to prevent refetch on every run
+#if os.path.exists(f"activities{year}.json"):
+#	activities = load_json(f"activities{year}.json")
+#else:
+
+activities = fetch_activites(year)
+write_json(f"activities{year}.json", activities)
 
 # Sort activities by date
 activities.sort(key = lambda act: parse_time(act['startTimeLocal']))
