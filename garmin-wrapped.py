@@ -35,6 +35,8 @@ topLevelSports = {
 	171: "Cross Country Skiing",
 	172: "Alpine Skiing / Snowboarding",
 	165: "Winter Sports",
+	89: "Multi Sport",
+	219: "Racket sports"
 }
 
 # Mapping to start hour
