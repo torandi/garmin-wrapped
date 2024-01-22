@@ -173,7 +173,7 @@ def sport_summary(activities):
 		summary['distance'] += act["distance"] or 0
 		summary['duration'] += act['duration'] or 0
 		summary['elevation_gain'] += act['elevationGain'] or 0
-		avgHrSum += act['averageHR']
+		avgHrSum += act['averageHR'] or 0
 
 	summary['avg_hr'] = avgHrSum / summary['count']
 	summary['avg_distance'] = summary['distance'] / summary['count']
@@ -210,7 +210,7 @@ def filter_activity(act):
 		'distance': act['distance'] or 0,
 		'duration': act['duration'] or 0,
 		'elevation_gain': act['elevationGain'] or 0,
-		'avgHr': act['averageHR'],
+		'avgHr': act['averageHR'] or 0,
 		'date': date.strftime("%d %B")
 	}
 
