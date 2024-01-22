@@ -245,7 +245,7 @@ class Wrapped
 		let diagram = fromHTML(`<div class='diagram-vertical data hidden'></div>`)
 		sortedTod.forEach((tod) => {
 			const data = this.data.time_of_day.find(e => e.name == tod)
-			const count = data.count
+			const count = data !== undefined ? data.count : 0
 			let row = fromHTML("<div class='diagram-vertical-row'></div>");
 
 			row.append(fromHTML(`<span class='month-label'>${tod}</span>`))
