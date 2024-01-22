@@ -282,7 +282,7 @@ for act in activities:
 
 	active_days[month][time.day] = 1
 
-	if act['distance'] > (longest_activity['distance'] or 0):
+	if act['distance'] is not None and (act['distance'] > (longest_activity['distance'] or 0)):
 		longest_activity = filter_activity(act)
 
 # Set up favorite time of day data
