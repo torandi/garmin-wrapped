@@ -17,6 +17,9 @@ You can look at the source code here and in the dependencies to ensure yourself 
 
 After this, start the garmin-wrapped.html page, to view your year summary. Click a page to view the next one.
 
+If you have issues with the garmin wrapped page not loading, it's probably due to CORS (cross origin policy) blocking the loading
+of the local javascript file. You can temporarily turn it off, in firefox this is security.fileuri.strict_origin_policy in about:config
+
 # Bugs
 This is currently only tested with my data for 2023, so there are sure to be bugs with other peoples data.
 
