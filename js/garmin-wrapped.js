@@ -226,7 +226,7 @@ class Wrapped
 	{
 		const sortedTod = ["Morning", "Lunch", "Afternoon","Evening","Night"]
 
-		let page = this.generatePage("You prefered to go out");
+		let page = this.generatePage("You preferred to go out");
 		const tod = this.data.time_of_day[0].name;
 		page.append(banner(`${todPrefix[tod]} ${tod}`, 'large sport hidden'))
 
