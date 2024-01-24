@@ -40,7 +40,9 @@ class Wrapped
 
 				for(const sport of this.data.sports_by_duration)
 				{
-					this.pages.push(this.sportsSummary.bind(this, sport))
+
+					if(this.data.sports[sport].count > 1)
+						this.pages.push(this.sportsSummary.bind(this, sport))
 				}
 
 				this.pages.push(this.summaryPage.bind(this))
