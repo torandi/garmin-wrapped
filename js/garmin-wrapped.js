@@ -343,10 +343,10 @@ class Wrapped
 
 		let any_improvement = run[1] > run[0] || cycle[1] > cycle[0]
 
-		let page = any_improvement ? this.generatePage("All that hard work paid off") : this.generatePage("Your VO2 Max didn't change much")
+		let page = any_improvement ? this.generatePage("All that hard work paid off") : this.generatePage("Your VO2Max didn't change much")
 
 		if(any_improvement)
-			page.append(banner("Your VO2 Max improved", 'medium hidden vo2max'))
+			page.append(banner("Your VO2Max improved", 'medium hidden vo2max'))
 
 		if(run[0] > 0 && run[1] > 0)
 			page.append(banner(`Running VO2Max from ${run[0]} to ${run[1]}`, 'medium hidden running vo2-color'))
