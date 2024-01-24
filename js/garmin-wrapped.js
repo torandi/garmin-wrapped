@@ -464,13 +464,7 @@ function humanTime(seconds)
 }
 
 function formatNumber(number) {
-	if(number < 1000) {
-		return number
-	} else {
-		var thousand = Math.floor(number / 1000)
-		var remainder = number - thousand * 1000
-		return `${thousand} ${remainder}`
-	}
+	return new Intl.NumberFormat().format(number)
 }
 
 function transitionInDefault() {
