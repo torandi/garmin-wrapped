@@ -130,6 +130,7 @@ class Wrapped
 			.call(nextPage[1])
 	}
 
+
 	humanDistance(distance) {
 		let result = ""
 		if(this.data.unit_system == 'metric')
@@ -137,17 +138,11 @@ class Wrapped
 			const metersInKm = 1000;
 
 			const kms = Math.floor(distance / metersInKm);
-			if (kms >= 20)
-				result = `${kms} km`
-			else if(kms < 10)
-				result = `${Math.floor(distance)} m`
+			if (kms >= 15)
+				result = `${formatNumber(Math.round(distance/metersInKm))} km`
 			else
-			{
-				distance -= kms * metersInKm;
-				result = `${kms} km`
-				if(distance > 0)
-					result += ` ${Math.floor(distance)} m`
-			}
+				result = `${formatNumber(Math.floor(distance))} m`
+	
 		}
 		else
 		{
@@ -156,17 +151,10 @@ class Wrapped
 			const feetsInMile = 5280;
 
 			const miles = Math.floor(feets / feetsInMile);
-			if (miles > 20)
-				result = `${miles} miles`
-			else if(miles < 8)
-				result = `${Math.floor(feets)} ft`
+			if (miles > 10)
+				result = `${formatNumber(Math.round(feets / feetsInMile))} miles`
 			else
-			{
-				feets -= miles * feetsInMile;
-				result = `${miles} miles`
-				if(feets > 0)
-					result += ` ${Math.floor(feets)} ft`
-			}
+				result = `${formatNumber(Math.floor(feets))} ft`
 		}
 		return result;
 	}
@@ -321,10 +309,11 @@ class Wrapped
 		page.append(
 			table(() => {
 				return this.data.sports_by_distance.slice(1).reduce((result, sport) => {
-					return result + `<tr>
+					var distance = this.data.sports[sport].distance;
+					return result + (distance > 0 ? `<tr>
 						<td>${sport}</td>
-						<td>${this.humanDistance(this.data.sports[sport].distance)}</td>
-					</tr>`
+						<td>${this.humanDistance(distance)}</td>
+					</tr>` : "")
 				}, "");
 			}, 'other hidden')
 		)
@@ -388,7 +377,8 @@ class Wrapped
 		page.append(banner(`Average duration ${humanTime(data.avg_duration)}`, 'medium duration-color'))
 		if(data.distance > 0)
 			page.append(banner(`Average distance ${this.humanDistance(data.avg_distance)}`, 'medium distance-color'))
-		page.append(banner(`Average heartrate ${Math.floor(data.avg_hr)} bpm`, 'medium hr-color'))
+		if(data.avg_hr > 0)
+			page.append(banner(`Average heartrate ${Math.floor(data.avg_hr)} bpm`, 'medium hr-color'))
 
 		return [page, () => {}]
 	}
@@ -398,7 +388,7 @@ class Wrapped
 		let page = this.generatePage(`${this.data.name}'s ${this.data.year}`)
 		page.append(banner(`${humanTime(this.data.totals.duration)}`, 'large duration-color'))
 		page.append(banner(`${this.humanDistance(this.data.totals.distance)}`, 'large distance-color'))
-		page.append(banner(`${this.humanDistance(this.data.totals.elevation_gain)}`, 'large elevation-color'))
+		page.append(banner(`${this.humanDistance(this.data.totals.elevation_gain)} elevation gain`, 'large elevation-color'))
 		page.append(banner(`${this.data.totals.count} activities`, 'large'))
 		page.append(banner(`${this.data.totals.active_days} active days`, 'large'))
 
@@ -448,10 +438,6 @@ function table(populateFunc, classes) {
 	return fromHTML(`<div class='table ${classes}'><table>${populateFunc()}</table></div>`)
 }
 
-function numberEnding (number) {
-	return (number > 1) ? 's' : '';
-}
-
 function humanTime(seconds)
 {
 	const secondsInMinute = 60;
@@ -462,19 +448,29 @@ function humanTime(seconds)
 	const days = Math.floor(seconds / secondsInDay);
 	seconds -= days * secondsInDay;
 	if(days > 0)
-		result += `${days} day${numberEnding(days)} `
+		result += `${days}d `
 
 	const hours = Math.floor(seconds / secondsInHour);
 	seconds -= hours * secondsInHour;
 	if(hours > 0)
-		result += `${hours} hour${numberEnding(hours)} `
+		result += `${hours}h `
 
 	const minutes = Math.round(seconds / secondsInMinute);
 	seconds -= minutes * secondsInMinute;
 	if(minutes > 0)
-		result += `${minutes} minute${numberEnding(minutes)}`
+		result += `${minutes}min`
 
 	return result;
+}
+
+function formatNumber(number) {
+	if(number < 1000) {
+		return number
+	} else {
+		var thousand = Math.floor(number / 1000)
+		var remainder = number - thousand * 1000
+		return `${thousand} ${remainder}`
+	}
 }
 
 function transitionInDefault() {
