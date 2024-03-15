@@ -15,7 +15,7 @@ class Wrapped
 	init()
 	{
 		this.output = document.getElementById("output")
-		this.pageIndex = 0
+		this.pageIndex = 9
 
 		this.pages = [
 			this.splashPage.bind(this),
@@ -33,9 +33,13 @@ class Wrapped
 
 			if(success)
 			{
-				if(this.data.sports["Running"] || this.data.sports["Cycling"])
+				if(this.data.sports["Running"])
 				{
-					this.pages.push(this.vo2maxImprovements.bind(this))
+					this.pages.push(this.runningImprovements.bind(this))
+				}
+				if(this.data.sports["Cycling"])
+				{
+					this.pages.push(this.cyclingImprovements.bind(this))
 				}
 
 				for(const sport of this.data.sports_by_duration)
@@ -328,40 +332,70 @@ class Wrapped
 		page.append(banner(`${this.data.longest_activity.name} ${this.data.longest_activity.date}`, 'large sport hidden sport-color'))
 		page.append(banner(this.humanDistance(this.data.longest_activity.distance), 'medium data hidden distance-color'))
 		page.append(banner(`${this.humanDistance(this.data.longest_activity.elevation_gain)} elevation gain`, 'medium hidden other elevation-color'))
-		page.append(banner(`${Math.floor(this.data.longest_activity.avgHr)} bpm average heart rate`, 'medium hidden other hr-color'))
+		page.append(banner(`${Math.round(this.data.longest_activity.avgHr)} bpm average heart rate`, 'medium hidden other hr-color'))
+		if(this.data.longest_activity.avgPower > 0)
+			page.append(banner(`${Math.round(this.data.longest_activity.avgPower)} W average power`, 'medium hidden other power-color'))
 
 		return [page, transitionInDefault]
 	}
 
-	vo2maxImprovements()
+	sharedImprovements(data, sport, anyOtherImprovement)
 	{
-		let running = this.data.sports["Running"] || {}
-		let cycling = this.data.sports["Cycling"] || {}
+		let vo2max = [ data['vo2max_first'] || 0, data['vo2max_last'] || 0 ]
 
-		let run = [ running['vo2max_first'] || 0, running['vo2max_last'] || 0 ]
-		let cycle = [ cycling['vo2max_first'] || 0, cycling['vo2max_last'] || 0 ]
+		let any_improvement = vo2max[1] > vo2max[0] || anyOtherImprovement
 
-		let any_improvement = run[1] > run[0] || cycle[1] > cycle[0]
+		let page = any_improvement ? this.generatePage(`Your ${sport} performance improved`) : this.generatePage(`This is how your ${sport} performance changed`)
 
-		let page = any_improvement ? this.generatePage("All that hard work paid off") : this.generatePage("Your VO2 Max didn't change much")
+		if(vo2max[0] > 0 && vo2max[1] > 0)
+			page.append(banner(`VO2Max from ${vo2max[0]} to ${vo2max[1]}`, `medium hidden ${sport} vo2max vo2-color`))
 
-		if(any_improvement)
-			page.append(banner("Your VO2 Max improved", 'medium hidden vo2max'))
+		return page
+	}
 
-		if(run[0] > 0 && run[1] > 0)
-			page.append(banner(`Running VO2Max from ${run[0]} to ${run[1]}`, 'medium hidden running vo2-color'))
+	runningImprovements()
+	{
+		let data = this.data.sports["Running"]["improvements"] || {}
 
-		if(cycle[0] > 0 && cycle[1] > 0)
-			page.append(banner(`Cycling VO2Max from ${cycle[0]} to ${cycle[1]}`, 'medium hidden cycling vo2-color'))
+		let thPace = [ data['thresholdPace_first'] || 0, data['thresholdPace_last'] || 0 ]
+
+		let thImproved = thPace[1] > thPace[0]
+
+		let page = this.sharedImprovements(data, "Running", thImproved)
+
+		if(thPace[0] > 0 && thPace[1] > 0)
+			page.append(banner(`Threshold pace from ${humanPace(thPace[0])} min/km to ${humanPace(thPace[1])} min/km`, 'medium hidden running thresholdpace'))
 
 		return [page, ()=>{
 			gsap.timeline()
 				.set(".vo2max", {scale: 0})
-				.set(".running", {scale: 0})
-				.set(".cycling", {scale: 0})
-				.to(".vo2max", {opacity: 1, rotate:360, scale:1, duration:1, ease:"power2.in"})
-				.to(".running", {opacity: 1, scale:1, duration:1, ease:"power2.in"})
-				.to(".cycling", {opacity: 1, scale:1, duration:1, ease:"power2.in"})
+				.to(".vo2max", {opacity: 1, scale:1, duration:1, ease:"power2.in"})
+				.to('.thresholdpace', {opacity: 1, duration: 1, ease: "power2.in"})
+		}]
+	}
+
+	cyclingImprovements()
+	{
+		let data = this.data.sports["Cycling"]["improvements"] || {}
+
+		let ftp = [ data['ftp_first'] || 0, data['ftp_last'] || 0 ]
+		let ftpWkg = [ data['ftp_perKg_first'] || 0, data['ftp_perKg_last'] || 0 ]
+
+		let ftpImproved = ftp[1] > ftp[0]
+
+		let page = this.sharedImprovements(data, "Cycling", ftpImproved)
+
+		if(ftp[0] > 0 && ftp[1] > 0)
+			page.append(banner(`FTP from ${ftp[0]} W to ${ftp[1]} W`, 'medium hidden cycling ftp'))
+
+		if(ftpWkg[0] > 0 && ftpWkg[1] > 0)
+			page.append(banner(`${ftpWkg[0].toFixed(2)} W/kg to ${ftpWkg[1].toFixed(2)} W/kg`, 'medium hidden cycling ftp'))
+
+		return [page, ()=>{
+			gsap.timeline()
+				.set(".vo2max", {scale: 0})
+				.to(".vo2max", {opacity: 1, scale:1, duration:1, ease:"power2.in"})
+				.to(".ftp", {opacity: 1, duration: 1, ease: "power2.in"})
 		}]
 	}
 
@@ -463,6 +497,17 @@ function humanTime(seconds)
 		result += `${minutes}min`
 
 	return result;
+}
+
+function humanPace(seconds)
+{
+	const secondsInMinute = 60;
+
+	const minutes = Math.floor(seconds / secondsInMinute);
+	seconds -= minutes * secondsInMinute;
+	seconds = Math.round(seconds);
+
+	return `${minutes}:${seconds < 10?"0":""}${seconds}`;
 }
 
 function formatNumber(number) {

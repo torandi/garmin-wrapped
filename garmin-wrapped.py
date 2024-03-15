@@ -5,7 +5,7 @@ import json
 import logging
 import requests
 import sys
-import os
+import math
 from getpass import getpass
 import datetime
 from functools import reduce
@@ -171,39 +171,121 @@ def sport_summary(activities):
 
 	avgHrSum = 0
 
-	for act in activities:
-		summary['distance'] += act["distance"] or 0
-		summary['duration'] += act['duration'] or 0
-		summary['elevation_gain'] += act['elevationGain'] or 0
-		avgHrSum += act['averageHR'] or 0
+	durationActCount = 0
+	distanceActCount = 0
+	hrActCount = 0
 
-	summary['avg_hr'] = avgHrSum / summary['count']
-	summary['avg_distance'] = summary['distance'] / summary['count']
-	summary['avg_duration'] = summary['duration'] / summary['count']
+	for act in activities:
+		if act["distance"]:
+			summary['distance'] += act["distance"]
+			distanceActCount += 1
+		if act["duration"]:
+			summary['duration'] += act['duration']
+			durationActCount += 1
+		if act['averageHR']:
+			hrActCount += 1
+			avgHrSum += act['averageHR']
+		summary['elevation_gain'] += act['elevationGain'] or 0
+
+	summary['avg_hr'] = (avgHrSum / hrActCount) if hrActCount > 0 else 0
+	summary['avg_distance'] =  (summary['distance'] / distanceActCount) if distanceActCount > 0 else 0
+	summary['avg_duration'] = (summary['duration'] / durationActCount) if durationActCount > 0 else 0
 
 	return summary
 
-def find_first_vo2max(activities):
+def find_first(activities, field):
 	for act in activities:
-		if act["vO2MaxValue"] is not None:
-			return act["vO2MaxValue"]
+		if act[field] is not None:
+			return act[field]
 
-def find_last_vo2max(activities):
+def find_last(activities, field):
 	for act in reversed(activities):
-		if act["vO2MaxValue"] is not None:
-			return act["vO2MaxValue"]
+		if act[field] is not None:
+			return act[field]
 
-def build_vo2max_improvement(activities):
-	result = {
-		'vo2max_first': find_first_vo2max(activities),
-		'vo2max_last': find_last_vo2max(activities)
+def fetch_biometric(year, field, sport):
+	url = f"/biometric-service/stats/{field}/range/{year}-01-01/{year}-12-31"
+	params = {
+		"aggregation": "weekly",
+		"userFirstDay": "monday"
 	}
 
-	if result['vo2max_first'] is None:
-		return None
-	
+	rawFtp = api.connectapi(url, params=params)
+	return list(filter(lambda x: x['series'] == sport, rawFtp))
+
+def fetch_vo2max(year, sport):
+	url = f"/metrics-service/metrics/maxmet/weekly/{year}-01-01/{year}-12-31"
+	data = api.connectapi(url)
+	return list(map(lambda x: x[sport],
+				 filter(lambda x: (x[sport] is not None) and (x[sport]['vo2MaxValue'] is not None), data)))
+
+# Convert speed in 1/10 m/s to pace
+def convert_speed_to_pace(speed):
+	pace = 1000.0 / (speed * 600.0)
+	# seconds, min = math.modf(pace)
+	# return f"{round(min)}:{round(seconds*60.0)}"
+	return pace * 60.0;
+
+def build_running_improvement(year):
+	vo2max = fetch_vo2max(year, "generic") # Running is counted as generic
+	result = {}
+
+	if len(vo2max) > 0:
+		result = {
+			'vo2max_first': vo2max[0]['vo2MaxValue'],
+			'vo2max_last': vo2max[-1]['vo2MaxValue']
+		}
+
+	# lactate threshold
+	url = f"/biometric-service/stats"
+	params = {
+		"startDate": f"{year}-01-01",
+		"endDate": f"{year}-12-31",
+		"aggregation": "weekly",
+		"userFirstDay": "monday"
+	}
+
+	rawStats = api.connectapi(url, params=params)
+
+	filteredList = list(filter(lambda x: x is not None and x > 0, map(lambda x: x['stats']['lactateThresholdSpeed']['avg'], rawStats)))
+
+	# threshold in 1/10 meters per second (weird unit?)
+
+	if len(filteredList) > 0:
+		result.update({
+			'thresholdPace_first': convert_speed_to_pace(filteredList[0]),
+			'thresholdPace_last': convert_speed_to_pace(filteredList[-1]),
+		})
+
 	return result
 
+def build_cycling_improvement(year):
+
+	result = {}
+
+	vo2max = fetch_vo2max(year, "cycling")
+	if(len(vo2max) > 0):
+		result = {
+			'vo2max_first': vo2max[0]['vo2MaxValue'],
+			'vo2max_last': vo2max[-1]['vo2MaxValue']
+		}
+
+	ftpData = fetch_biometric(year, "functionalThresholdPower", "cycling")
+	if len(ftpData) == 0:
+		return result
+
+	ftpPerKgData = fetch_biometric(year, "powerToWeight", "cycling")
+	result.update({
+		'ftp_first': ftpData[0]['value'],
+		'ftp_last': ftpData[-1]['value'],
+		'ftp_perKg_first': ftpPerKgData[0]['value'],
+		'ftp_perKg_last': ftpPerKgData[-1]['value']
+	})
+
+	return result
+
+# generic improvements?
+# endurance score
 
 def filter_activity(act):
 	date = parse_time(act['startTimeLocal'])
@@ -213,7 +295,8 @@ def filter_activity(act):
 		'duration': act['duration'] or 0,
 		'elevation_gain': act['elevationGain'] or 0,
 		'avgHr': act['averageHR'] or 0,
-		'date': date.strftime("%d %B")
+		'avgPower': act['avgPower'] or 0,
+		'date': date.strftime("%d %B"),
 	}
 
 ### Main Program
@@ -312,14 +395,14 @@ data['totals'] = {
 
 # build improvement data for running and cycling
 if "Running" in summaries:
-	improvements = build_vo2max_improvement(grouped_activities['Running'])
-	if improvements is not None:
-		data['sports']['Running'].update(improvements)
+	improvements = build_running_improvement(year)
+	if improvements:
+		data['sports']['Running']['improvements'] = improvements
 
 if "Cycling" in summaries:
-	improvements = build_vo2max_improvement(grouped_activities['Cycling'])
-	if improvements is not None:
-		data['sports']['Cycling'].update(improvements)
+	improvements = build_cycling_improvement(year)
+	if improvements:
+		data['sports']['Cycling']['improvements'] = improvements
 
 write_json("garmin-wrapped.json", data)
 
