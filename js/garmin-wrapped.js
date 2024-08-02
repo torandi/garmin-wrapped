@@ -15,7 +15,7 @@ class Wrapped
 	init()
 	{
 		this.output = document.getElementById("output")
-		this.pageIndex = 9
+		this.pageIndex = 0
 
 		this.pages = [
 			this.splashPage.bind(this),

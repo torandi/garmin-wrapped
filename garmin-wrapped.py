@@ -5,6 +5,7 @@ import json
 import logging
 import requests
 import sys
+import os
 import math
 from getpass import getpass
 import datetime
@@ -156,7 +157,7 @@ def build_sorted_list(dataDict, sortFunc, defaultValueKey = 'value'):
 	return sorted_list
 
 def summarize_field(summaries, field):
-	return reduce(lambda acum,cur: acum + (cur[field] or 0), summaries, 0 )
+	return reduce(lambda acum,cur: acum + cur.get(field, 0), summaries, 0 )
 
 def sport_summary(activities):
 	summary = {
@@ -185,7 +186,7 @@ def sport_summary(activities):
 		if act['averageHR']:
 			hrActCount += 1
 			avgHrSum += act['averageHR']
-		summary['elevation_gain'] += act['elevationGain'] or 0
+		summary['elevation_gain'] += act.get('elevationGain', 0)
 
 	summary['avg_hr'] = (avgHrSum / hrActCount) if hrActCount > 0 else 0
 	summary['avg_distance'] =  (summary['distance'] / distanceActCount) if distanceActCount > 0 else 0
@@ -291,11 +292,11 @@ def filter_activity(act):
 	date = parse_time(act['startTimeLocal'])
 	return {
 		'name': act['activityName'],
-		'distance': act['distance'] or 0,
-		'duration': act['duration'] or 0,
-		'elevation_gain': act['elevationGain'] or 0,
-		'avgHr': act['averageHR'] or 0,
-		'avgPower': act['avgPower'] or 0,
+		'distance': act.get('distance', 0),
+		'duration': act.get('duration', 0),
+		'elevation_gain': act.get('elevationGain', 0),
+		'avgHr': act.get('averageHR', 0),
+		'avgPower': act.get('avgPower', 0),
 		'date': date.strftime("%d %B"),
 	}
 
@@ -316,8 +317,8 @@ if len(sys.argv) > 1:
 
 if year is None:
 	today = datetime.date.today()
-	# Pick current year if we're in august or later
-	if today.month > 7:
+	# Pick current year if we're in july or later
+	if today.month > 6:
 		year = today.year
 	else:
 		year = today.year - 1
@@ -332,12 +333,11 @@ data = {
 }
 
 # Uncomment to prevent refetch on every run
-#if os.path.exists(f"activities{year}.json"):
-#	activities = load_json(f"activities{year}.json")
-#else:
-
-activities = fetch_activites(year)
-write_json(f"activities{year}.json", activities)
+if os.path.exists(f"activities{year}.json"):
+	activities = load_json(f"activities{year}.json")
+else:
+	activities = fetch_activites(year)
+	write_json(f"activities{year}.json", activities)
 
 # Sort activities by date
 activities.sort(key = lambda act: parse_time(act['startTimeLocal']))
@@ -361,14 +361,14 @@ for act in activities:
 	month = time.month
 
 	increment_entry(monthly[month], 'count')
-	increment_entry(monthly[month], 'duration', act['duration'])
-	increment_entry(monthly[month], 'distance', act['distance'])
-	increment_entry(monthly[month], 'elevation_gain', act['elevationGain'])
-	increment_entry(per_tod, get_time_of_day(act['startTimeLocal'], act['duration']))
+	increment_entry(monthly[month], 'duration', act.get('duration', 0))
+	increment_entry(monthly[month], 'distance', act.get('distance', 0))
+	increment_entry(monthly[month], 'elevation_gain', act.get('elevationGain', 0))
+	increment_entry(per_tod, get_time_of_day(act['startTimeLocal'], act.get('duration', 0)))
 
 	active_days[month][time.day] = 1
 
-	if act['distance'] is not None and (act['distance'] > (longest_activity['distance'] or 0)):
+	if act.get('distance', 0) > (longest_activity.get('distance', 0)):
 		longest_activity = filter_activity(act)
 
 # Set up favorite time of day data
