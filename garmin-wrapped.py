@@ -32,12 +32,17 @@ topLevelSports = {
 	13: "Strength Training",
 	26: "Swimming",
 	32: "Indoor Rowing",
+	37: "Mounteneering",
 	163: "Yoga",
+	11: "Cardio",
 	171: "Cross Country Skiing",
 	172: "Alpine Skiing / Snowboarding",
 	165: "Winter Sports",
+	174: "Bouldering",
 	89: "Multi Sport",
 	219: "Racket sports"
+	210: "Field Hockey",
+	4: "Other",
 }
 
 # Mapping to start hour
