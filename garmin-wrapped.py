@@ -177,13 +177,13 @@ def sport_summary(activities):
 	hrActCount = 0
 
 	for act in activities:
-		if act["distance"]:
+		if "distance" in act and act["distance"]:
 			summary['distance'] += act["distance"]
 			distanceActCount += 1
 		if act["duration"]:
 			summary['duration'] += act['duration']
 			durationActCount += 1
-		if act['averageHR']:
+		if 'averageHR' in act and act['averageHR']:
 			hrActCount += 1
 			avgHrSum += act['averageHR']
 		summary['elevation_gain'] += act.get('elevationGain', 0)
